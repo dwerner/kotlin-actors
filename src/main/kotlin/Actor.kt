@@ -20,7 +20,8 @@ fun <T> promise(): SettableFuture<T> {
 
 object Actors {
   private val threadFactory: ThreadFactory? = ThreadFactoryBuilder().setDaemon(true)?.build()
-  private val pool = Executors.newCachedThreadPool(threadFactory as ThreadFactory)
+  // 10 threads max seems reasonable on android
+  private val pool = Executors.newFixedThreadPool(10, threadFactory as ThreadFactory)
   public val executor: ListeningExecutorService = MoreExecutors.listeningDecorator(pool) as ListeningExecutorService;
 }
 
@@ -44,7 +45,7 @@ public abstract class Actor() {
     if (!running.get() && !mailbox.isEmpty()) {
       if (running.compareAndSet(false, true)) {
         val messages = ArrayList<Message>()
-        val num = mailbox.drainTo(messages, 10)
+        val num = mailbox.drainTo(messages, 5)
         Actors.executor submit {
           for (msg in messages) {
             try {
