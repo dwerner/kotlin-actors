@@ -54,8 +54,6 @@ android {
   }
 }
 
-
-
 buildscript {
   repositories {
     mavenCentral()

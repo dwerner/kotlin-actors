@@ -12,6 +12,11 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder
 import java.util.concurrent.atomic.AtomicBoolean
 import android.util.Log
 import java.util.concurrent.BlockingQueue
+import java.util.concurrent.ScheduledExecutorService
+import com.google.common.util.concurrent.ListeningScheduledExecutorService
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.ExecutionException
+import com.google.common.util.concurrent.ListenableScheduledFuture
 
 
 fun <T> promise(): SettableFuture<T> {
@@ -21,8 +26,9 @@ fun <T> promise(): SettableFuture<T> {
 object Actors {
   private val threadFactory: ThreadFactory? = ThreadFactoryBuilder().setDaemon(true)?.build()
   // 10 threads max seems reasonable on android
-  private val pool = Executors.newFixedThreadPool(10, threadFactory as ThreadFactory)
-  public val executor: ListeningExecutorService = MoreExecutors.listeningDecorator(pool) as ListeningExecutorService;
+  private val pool = Executors.newScheduledThreadPool(10, threadFactory as ThreadFactory)
+  public val executor: ListeningScheduledExecutorService =
+      MoreExecutors.listeningDecorator(pool) as ListeningScheduledExecutorService;
 }
 
 public abstract class Actor() {
@@ -33,6 +39,20 @@ public abstract class Actor() {
   private val mailbox:BlockingQueue<Message> = LinkedBlockingQueue<Message>()
 
   abstract fun receive(m: Any?): Any?
+
+  fun after(interval:Long, m:Any?): ListenableFuture<Any?> {
+    val afterPromise = promise<Any?>()
+    println("Scheduling task for ${interval} millis from now")
+    Actors.executor.schedule({ ()->
+      println("Sending after timeout.")
+      try {
+        afterPromise.set((this send m).get())
+      } catch (e:Exception) {
+        afterPromise.setException(e)
+      }
+    }, interval, TimeUnit.MILLISECONDS)
+    return afterPromise
+  }
 
   fun send(m: Any?): ListenableFuture<Any> {
     val result = promise<Any>()
@@ -46,7 +66,7 @@ public abstract class Actor() {
       if (running.compareAndSet(false, true)) {
         val messages = ArrayList<Message>()
         val num = mailbox.drainTo(messages, 5)
-        Actors.executor submit {
+        Actors.executor submit { () ->
           for (msg in messages) {
             try {
               msg.future.set(receive(msg.message))
@@ -55,7 +75,7 @@ public abstract class Actor() {
             }
           }
           running.set(false)
-          dispatch()
+          dispatch() // Must run to completion, otherwise we will wait for the next send
         }
       }
     }
