@@ -20,15 +20,14 @@ import com.google.common.util.concurrent.ListenableScheduledFuture
 
 
 fun <T> promise(): SettableFuture<T> {
-  return SettableFuture.create<T>() as SettableFuture<T>
+  return SettableFuture.create<T>()
 }
 
 object Actors {
   private val threadFactory: ThreadFactory? = ThreadFactoryBuilder().setDaemon(true)?.build()
   // 10 threads max seems reasonable on android
   private val pool = Executors.newScheduledThreadPool(10, threadFactory as ThreadFactory)
-  public val executor: ListeningScheduledExecutorService =
-      MoreExecutors.listeningDecorator(pool) as ListeningScheduledExecutorService;
+  public val executor: ListeningScheduledExecutorService = MoreExecutors.listeningDecorator(pool)
 }
 
 public abstract class Actor() {
@@ -65,7 +64,8 @@ public abstract class Actor() {
     if (!running.get() && !mailbox.isEmpty()) {
       if (running.compareAndSet(false, true)) {
         val messages = ArrayList<Message>()
-        val num = mailbox.drainTo(messages, 5)
+        //val num =
+        mailbox.drainTo(messages, 5)
         Actors.executor submit { () ->
           for (msg in messages) {
             try {
