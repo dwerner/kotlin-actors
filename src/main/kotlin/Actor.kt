@@ -17,17 +17,26 @@ import com.google.common.util.concurrent.ListeningScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.ExecutionException
 import com.google.common.util.concurrent.ListenableScheduledFuture
+import com.google.common.base.Throwables
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.FutureCallback
+import java.util.concurrent.Executor
+import android.os.Handler
+import android.os.Looper
 
-
-fun <T> promise(): SettableFuture<T> {
-  return SettableFuture.create<T>()
-}
 
 object Actors {
   private val threadFactory: ThreadFactory? = ThreadFactoryBuilder().setDaemon(true)?.build()
   // 10 threads max seems reasonable on android
   private val pool = Executors.newScheduledThreadPool(10, threadFactory as ThreadFactory)
   public val executor: ListeningScheduledExecutorService = MoreExecutors.listeningDecorator(pool)
+}
+
+private class UiThreadExecutor() : Executor {
+  private val handler:Handler = Handler(Looper.getMainLooper())
+  override fun execute(command: Runnable) {
+    handler.post(command)
+  }
 }
 
 public abstract class Actor() {
@@ -38,6 +47,29 @@ public abstract class Actor() {
   private val mailbox:BlockingQueue<Message> = LinkedBlockingQueue<Message>()
 
   abstract fun receive(m: Any?): Any?
+
+  fun runOnMainThread(f:()->Unit) {
+    UiThreadExecutor().execute {
+      f()
+    }
+  }
+
+  private fun <T> promise(): SettableFuture<T> {
+    val promise = SettableFuture.create<T>()
+    Futures.addCallback(promise, object : FutureCallback<T> {
+      override fun onSuccess(result: T?) { }
+      override fun onFailure(t: Throwable?) {
+        runOnMainThread {
+          catch(t!! as ActorExecutionException)
+        }
+      }
+    })
+    return promise
+  }
+
+  open fun catch(error: ActorExecutionException) {
+    throw error
+  }
 
   fun after(interval:Long, m:Any?): ListenableFuture<Any?> {
     val afterPromise = promise<Any?>()
@@ -71,7 +103,7 @@ public abstract class Actor() {
             try {
               msg.future.set(receive(msg.message))
             } catch (t: Throwable) {
-              msg.future.setException(t)
+              msg.future.setException(ActorExecutionException("Failed to execute message.", msg, t))
             }
           }
           running.set(false)
@@ -81,6 +113,8 @@ public abstract class Actor() {
     }
   }
 }
+
+public class ActorExecutionException(msg: String, val message: Any?, throwable: Throwable) : Exception(msg, throwable)
 
 public fun actor(f: (Any?) -> Any?): Actor {
   return object: Actor() {
