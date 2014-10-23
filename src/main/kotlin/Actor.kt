@@ -48,6 +48,12 @@ public abstract class Actor() {
 
   abstract fun receive(m: Any?): Any?
 
+  fun runOnMainThread(r:Runnable) {
+    UiThreadExecutor().execute {
+      r.run()
+    }
+  }
+
   fun runOnMainThread(f:()->Unit) {
     UiThreadExecutor().execute {
       f()
@@ -60,14 +66,14 @@ public abstract class Actor() {
       override fun onSuccess(result: T?) { }
       override fun onFailure(t: Throwable?) {
         runOnMainThread {
-          catch(t!! as ActorExecutionException)
+          rescue(t!! as ActorExecutionException)
         }
       }
     })
     return promise
   }
 
-  open fun catch(error: ActorExecutionException) {
+  open fun rescue(error: ActorExecutionException) {
     throw error
   }
 
