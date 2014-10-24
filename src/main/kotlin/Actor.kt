@@ -32,7 +32,7 @@ object Actors {
   public val executor: ListeningScheduledExecutorService = MoreExecutors.listeningDecorator(pool)
 }
 
-private class UiThreadExecutor() : Executor {
+public class UiThreadExecutor() : Executor {
   private val handler:Handler = Handler(Looper.getMainLooper())
   override fun execute(command: Runnable) {
     handler.post(command)
