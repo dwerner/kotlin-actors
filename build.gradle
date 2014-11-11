@@ -3,7 +3,7 @@ apply plugin: 'kotlin-android'
 apply plugin: 'robolectric'
 
 dependencies {
-    compile 'com.android.support:support-v4:21.0.0'
+  compile 'com.android.support:support-v4:21.0.0'
   compile "org.jetbrains.kotlin:kotlin-stdlib:0.9.66"
   compile 'com.google.guava:guava:18.0'
 
@@ -49,11 +49,12 @@ android {
 
     debug.setRoot('build-types/debug')
     release.setRoot('build-types/release')
+      main.java.srcDirs += 'src/main/kotlin'
   }
 }
 
 buildscript {
-  repositories {
+    repositories {
     mavenCentral()
   }
   dependencies {

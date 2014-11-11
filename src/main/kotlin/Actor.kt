@@ -25,15 +25,15 @@ import android.os.Handler
 import android.os.Looper
 
 
-object Actors {
+object Aether {
   private val threadFactory: ThreadFactory? = ThreadFactoryBuilder().setDaemon(true)?.build()
   // 10 threads max seems reasonable on android
-  private val pool = Executors.newScheduledThreadPool(10, threadFactory as ThreadFactory)
-  public val executor: ListeningScheduledExecutorService = MoreExecutors.listeningDecorator(pool)
+  private val pool = Executors.newScheduledThreadPool(8, threadFactory as ThreadFactory)
+  internal val executor: ListeningScheduledExecutorService = MoreExecutors.listeningDecorator(pool)
 }
 
 public class UiThreadExecutor() : Executor {
-  private val handler:Handler = Handler(Looper.getMainLooper())
+  private val handler: Handler = Handler(Looper.getMainLooper())
   override fun execute(command: Runnable) {
     handler.post(command)
   }
@@ -44,53 +44,23 @@ public abstract class Actor() {
   private data class Message(val message: Any?, val future: SettableFuture<Any>)
 
   private val running = AtomicBoolean(false)
-  private val mailbox:BlockingQueue<Message> = LinkedBlockingQueue<Message>()
+  private val mailbox: BlockingQueue<Message> = LinkedBlockingQueue<Message>()
 
+  /**
+   * receive messages - implement this to define the actor
+   */
   abstract fun receive(m: Any?): Any?
 
-  fun runOnMainThread(r:Runnable) {
-    UiThreadExecutor().execute {
-      r.run()
-    }
-  }
-
-  fun runOnMainThread(f:()->Unit) {
-    UiThreadExecutor().execute {
-      f()
-    }
-  }
-
-  private fun <T> promise(): SettableFuture<T> {
-    val promise = SettableFuture.create<T>()
-    Futures.addCallback(promise, object : FutureCallback<T> {
-      override fun onSuccess(result: T?) { }
-      override fun onFailure(t: Throwable?) {
-        runOnMainThread {
-          rescue(t!! as ActorExecutionException)
-        }
-      }
-    })
-    return promise
-  }
-
+  /**
+   * rescue from an exception
+   */
   open fun rescue(error: ActorExecutionException) {
     throw error
   }
 
-  fun after(interval:Long, m:Any?): ListenableFuture<Any?> {
-    val afterPromise = promise<Any?>()
-    println("Scheduling task for ${interval} millis from now")
-    Actors.executor.schedule({ ()->
-      println("Sending after timeout.")
-      try {
-        afterPromise.set((this send m).get())
-      } catch (e:Exception) {
-        afterPromise.setException(e)
-      }
-    }, interval, TimeUnit.MILLISECONDS)
-    return afterPromise
-  }
-
+  /**
+   * send a message to this actor
+   */
   fun send(m: Any?): ListenableFuture<Any> {
     val result = promise<Any>()
     mailbox.put(Message(m, result))
@@ -98,18 +68,56 @@ public abstract class Actor() {
     return result
   }
 
+  /**
+   * schedule a message to be sent after a given delay
+   */
+  fun after(interval: Long, m: Any?): ListenableFuture<Any?> {
+    val afterPromise = promise<Any?>()
+    Aether.executor.schedule({ () ->
+      try {
+        afterPromise.set( (this send m).get() )
+      } catch (e: Exception) {
+        afterPromise.setException(
+            ActorExecutionException("Failed to execute scheduled message.", m, e)
+        )
+      }
+    }, interval, TimeUnit.MILLISECONDS)
+    return afterPromise
+  }
+
+  // STUB
+  fun kill() {
+  }
+
+  // STUB
+  fun stop() {
+  }
+
+  // HACK: this is really a hack used to delegate any exception to the main thread
+  // This is useful in the case when you want to get an exception that ocurred
+  // without calling ListenableFuture.get()
+  fun runOnMainThread(r: Runnable) {
+    UiThreadExecutor().execute(r)
+  }
+
+  fun runOnMainThread(f: () -> Unit) {
+    UiThreadExecutor().execute(f)
+  }
+
+  // Run our mailbox to completion, and then return and wait for more messages
   private fun dispatch() {
     if (!running.get() && !mailbox.isEmpty()) {
       if (running.compareAndSet(false, true)) {
         val messages = ArrayList<Message>()
-        //val num =
-        mailbox.drainTo(messages, 5)
-        Actors.executor submit { () ->
+        mailbox.drainTo(messages, 8)
+        Aether.executor submit { () ->
           for (msg in messages) {
             try {
               msg.future.set(receive(msg.message))
             } catch (t: Throwable) {
-              msg.future.setException(ActorExecutionException("Failed to execute message.", msg, t))
+              msg.future.setException(
+                  ActorExecutionException("Failed to execute message.", msg.message, t)
+              )
             }
           }
           running.set(false)
@@ -118,12 +126,31 @@ public abstract class Actor() {
       }
     }
   }
+
+  private fun <T> promise(): SettableFuture<T> {
+    val promise = SettableFuture.create<T>()
+    // HACK: Wrap all promises in a handler that captures exceptions and proxies them to the main thread.
+    Futures.addCallback(promise, object : FutureCallback<T> {
+      override fun onSuccess(result: T?) { }
+      override fun onFailure(t: Throwable?) {
+        //runOnMainThread {
+          rescue(t!! as ActorExecutionException)
+        //}
+      }
+    })
+    return promise
+  }
+
 }
 
-public class ActorExecutionException(msg: String, val message: Any?, throwable: Throwable) : Exception(msg, throwable)
+public class ActorExecutionException(
+    msg: String,
+    val message: Any?,
+    throwable: Throwable
+) : Exception(msg, throwable)
 
 public fun actor(f: (Any?) -> Any?): Actor {
-  return object: Actor() {
+  return object : Actor() {
     override fun receive(m: Any?): Any? {
       return f(m)
     }

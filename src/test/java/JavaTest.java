@@ -5,13 +5,16 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListenableFutureTask;
 import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.hubble.actors.Actor;
+import com.hubble.actors.ActorExecutionException;
 
 import org.jetbrains.annotations.Nullable;
 import org.junit.Test;
 import org.junit.Assert;
 import org.robolectric.annotation.Config;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 
@@ -51,8 +54,6 @@ public class JavaTest {
       if (m instanceof PingMessage) {
         //println("Ping from ThreadID" + Thread.currentThread().getId());
         ((PingMessage)m).getA().send(new PongMessage(this));
-      } else {
-        Assert.fail("Didn't get the right message");
       }
       return null;
     }
@@ -65,21 +66,28 @@ public class JavaTest {
       if (m instanceof PongMessage) {
         //println("Pong from ThreadID" + Thread.currentThread().getId());
         ((PongMessage) m).getA().send(new PingMessage(this));
-      } else {
-        Assert.fail("Didn't get the right message");
       }
       return null;
     }
+
   }
 
-  //@Test
+  @Test
   public void ActorPingPongTest(){
+    long startTime = new Date().getTime();
     println("Starting Ping/Ping test from ThreadID" + Thread.currentThread().getId());
+    List<ListenableFuture<?>> pings = new ArrayList<ListenableFuture<?>>();
     Ping ping = new Ping();
-    Pong pong = new Pong();
-    ping.send(new PongMessage(pong));
+    Ping pong = new Ping(); // Don't reflect messages
+    for (int i = 0; i < 100000; i++) {
+      pings.add( ping.send(new PongMessage(pong)) );
+    }
     try {
-      Thread.sleep(10);
+      for (ListenableFuture<?> p : pings) {
+        p.get();
+      }
+      long endTime = new Date().getTime();
+      println("Ending ActorPingPongTest with " + pings.size() + " pairs in "+ (endTime - startTime) + " ms");
     } catch (Exception e) {
       Assert.fail("exception during ping-pong");
     }
@@ -96,7 +104,7 @@ public class JavaTest {
       println("<---- TimeoutActor: Tested/observed interval: "+observedInterval + " - " + m);
       Assert.assertTrue("This actor executed the message AFTER 100 ms", observedInterval >= 100 );
       this.time = new Date().getTime();
-      ((PingMessage)m).getA().after(100, new Message(this));
+      ((Message)m).getA().after(100, new Message(this));
       return null;
     }
   }
@@ -122,8 +130,8 @@ public class JavaTest {
     try {
       future.get();
     } catch (Exception e) {
-      Assert.fail("exception during realization of future");
       e.printStackTrace();
+      Assert.fail("exception during realization of future");
     }
   }
 }
