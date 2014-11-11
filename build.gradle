@@ -7,8 +7,6 @@ dependencies {
   compile "org.jetbrains.kotlin:kotlin-stdlib:0.9.66"
   compile 'com.google.guava:guava:18.0'
 
-  compile project(':submodules:server-api')
-
   // Workaround for stupid bug in robolectric
   androidTestCompile 'junit:junit:4.10'
   androidTestCompile ('org.robolectric:robolectric:2.3') {
