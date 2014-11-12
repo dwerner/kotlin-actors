@@ -17,6 +17,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import jet.runtime.typeinfo.JetValueParameter;
 
@@ -48,10 +49,11 @@ public class JavaTest {
   }
 
   private class Pong extends Actor {
+    AtomicInteger msgCount = new AtomicInteger(0);
     @Override
     public Object receive(Object m) {
-      Assert.assertTrue(m instanceof PingMessage);
       if (m instanceof PingMessage) {
+        msgCount.getAndAdd(1);
         //println("Ping from ThreadID" + Thread.currentThread().getId());
         ((PingMessage)m).getA().send(new PongMessage(this));
       }
@@ -60,17 +62,17 @@ public class JavaTest {
   }
 
   private class Ping extends Actor {
+    AtomicInteger msgCount = new AtomicInteger(0);
     @Override
     public Object receive(Object m) {
-      Assert.assertTrue(m instanceof PongMessage);
       if (m instanceof PongMessage) {
-        //println("Pong from ThreadID" + Thread.currentThread().getId());
+        msgCount.getAndAdd(1);
         ((PongMessage) m).getA().send(new PingMessage(this));
       }
       return null;
     }
-
   }
+
 
   @Test
   public void ActorPingPongTest(){
@@ -78,16 +80,17 @@ public class JavaTest {
     println("Starting Ping/Ping test from ThreadID" + Thread.currentThread().getId());
     List<ListenableFuture<?>> pings = new ArrayList<ListenableFuture<?>>();
     Ping ping = new Ping();
-    Ping pong = new Ping(); // Don't reflect messages
-    for (int i = 0; i < 100000; i++) {
-      pings.add( ping.send(new PongMessage(pong)) );
+    Pong pong = new Pong(); // Don't reflect messages
+    for (int i = 0; i < 500000; i++) {
+      pings.add(ping.send(new PongMessage(pong)));
     }
     try {
       for (ListenableFuture<?> p : pings) {
         p.get();
       }
       long endTime = new Date().getTime();
-      println("Ending ActorPingPongTest with " + pings.size() + " pairs in "+ (endTime - startTime) + " ms");
+      println("Ending ActorPingPongTest with " + pings.size() + " sent messages in "+ (endTime - startTime) + " ms");
+      println("Total messages received:"+ ping.msgCount + " + " + pong.msgCount);
     } catch (Exception e) {
       Assert.fail("exception during ping-pong");
     }

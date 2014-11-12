@@ -133,9 +133,9 @@ public abstract class Actor() {
     Futures.addCallback(promise, object : FutureCallback<T> {
       override fun onSuccess(result: T?) { }
       override fun onFailure(t: Throwable?) {
-        //runOnMainThread {
+        runOnMainThread {
           rescue(t!! as ActorExecutionException)
-        //}
+        }
       }
     })
     return promise
