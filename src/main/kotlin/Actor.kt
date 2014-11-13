@@ -104,6 +104,17 @@ public abstract class Actor() {
     UiThreadExecutor().execute(f)
   }
 
+  /**
+  * Use this if you need a value returned from the main thread
+  */
+  fun getFromMainThread( f:() -> Any ): Any {
+    val promise = promise<Any>()
+    UiThreadExecutor().execute {
+      promise.set(f())
+    }
+    return promise.get()
+  }
+
   // Run our mailbox to completion, and then return and wait for more messages
   private fun dispatch() {
     if (!running.get() && !mailbox.isEmpty()) {
