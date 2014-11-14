@@ -138,7 +138,7 @@ public abstract class Actor() {
     }
   }
 
-  private fun <T> promise(): SettableFuture<T> {
+  public fun <T> promise(): SettableFuture<T> {
     val promise = SettableFuture.create<T>()
     // HACK: Wrap all promises in a handler that captures exceptions and proxies them to the main thread.
     Futures.addCallback(promise, object : FutureCallback<T> {
