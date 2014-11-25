@@ -46,6 +46,7 @@ public abstract class Actor() {
   private val running = AtomicBoolean(false)
   private val mailbox: BlockingQueue<Message> = LinkedBlockingQueue<Message>()
 
+
   /**
    * receive messages - implement this to define the actor
    */
@@ -87,10 +88,6 @@ public abstract class Actor() {
 
   // STUB
   fun kill() {
-  }
-
-  // STUB
-  fun stop() {
   }
 
   // HACK: this is really a hack used to delegate any exception to the main thread
@@ -152,6 +149,28 @@ public abstract class Actor() {
     return promise
   }
 
+}
+
+public abstract class PublishSubscribeActor() : Actor() {
+  private val clients = ArrayList<Actor>()
+
+  public fun publish(m:Any?) {
+    for (a in clients) {
+      a send m
+    }
+  }
+
+  public fun subscribe(a:Actor) {
+    if (! clients.contains(a) ){
+      clients.add(a)
+    }
+  }
+
+  public fun unsubscribe(a:Actor) {
+    if ( clients.contains(a) ){
+      clients.remove(a)
+    }
+  }
 }
 
 public class ActorExecutionException(
