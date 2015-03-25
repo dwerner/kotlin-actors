@@ -17,23 +17,11 @@ import com.google.common.util.concurrent.ListeningScheduledExecutorService
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.FutureCallback
 
-import android.os.Handler
-import android.os.Looper
-
-
 object Aether {
   private val threadFactory: ThreadFactory? = ThreadFactoryBuilder().setDaemon(true)?.build()
   private val pool = Executors.newScheduledThreadPool(8, threadFactory as ThreadFactory)
   internal val executor: ListeningScheduledExecutorService = MoreExecutors.listeningDecorator(pool)
   // TODO: private val mainThreadExecutor = getPlatformMainThreadExecutor()
-  internal val mainThreadExecutor = MainThreadExecutor()
-}
-
-public class MainThreadExecutor() : Executor {
-  private val handler: Handler = Handler(Looper.getMainLooper())
-  override fun execute(command: Runnable) {
-    handler.post(command)
-  }
 }
 
 public abstract class Actor() {
@@ -102,29 +90,6 @@ public abstract class Actor() {
     this.mailbox.clear()
   }
 
-  // HACK: used to delegate any exception to the main thread
-  // This is useful in the case when you want to get an exception that ocurred
-  // without calling ListenableFuture.get()
-  fun runOnMainThread( r: Runnable ) {
-    Aether.mainThreadExecutor.execute( r )
-  }
-
-  // Kotlin helper - take a function literal and do the same as the Runnable case
-  fun runOnMainThread( f: () -> Unit ) {
-    Aether.mainThreadExecutor.execute( f )
-  }
-
-  /**
-   * Send a promise to the main thread, and resolve it
-   */
-  fun getFromMainThread( f: () -> Any ): Any {
-    val promise = promise<Any>()
-    Aether.mainThreadExecutor.execute {
-      promise.set(f())
-    }
-    return promise.get()
-  }
-
   // Run our mailbox to completion, and then return and wait for more messages
   private fun dispatch() {
     if ( !running.get() && !mailbox.isEmpty() && alive.get() ) {
@@ -159,11 +124,7 @@ public abstract class Actor() {
     val promise = SettableFuture.create<T>()
     Futures.addCallback(promise, object : FutureCallback<T> {
       override fun onFailure(t: Throwable?) {
-
-        runOnMainThread {
-          rescue( t!! as ActorExecutionException )
-        }
-
+        rescue( t!! as ActorExecutionException )
       }
       override fun onSuccess(result: T) {}
     })

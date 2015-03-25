@@ -10,7 +10,6 @@ import com.hubble.actors.ActorExecutionException;
 import org.jetbrains.annotations.Nullable;
 import org.junit.Test;
 import org.junit.Assert;
-import org.robolectric.annotation.Config;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -23,9 +22,7 @@ import jet.runtime.typeinfo.JetValueParameter;
 
 import static kotlin.io.IoPackage.println;
 
-@Config(emulateSdk = 18)
 public class JavaTest {
-
   private class Message {
     Actor a;
     public Message(final Actor a){

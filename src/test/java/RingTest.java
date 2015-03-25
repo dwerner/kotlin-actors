@@ -7,7 +7,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.robolectric.annotation.Config;
 
 import java.util.Date;
 
@@ -16,7 +15,6 @@ import static kotlin.io.IoPackage.println;
 /**
  * Created by dan on 11/11/14.
  */
-@Config(emulateSdk = 18)
 public class RingTest {
 
   static RingActor ring50head;

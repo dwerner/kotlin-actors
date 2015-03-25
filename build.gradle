@@ -1,84 +1,78 @@
-apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
-apply plugin: 'robolectric'
+apply plugin: 'java'
+apply plugin: 'kotlin'
+apply plugin: 'maven'
 
-dependencies {
-  compile 'com.android.support:support-v4:21.0.2'
-  compile "org.jetbrains.kotlin:kotlin-stdlib:0.9.66"
-  compile 'com.google.guava:guava:18.0'
+group = 'com.hubble.actors'
+version = '0.1.1'
+setupPublishingDetails()
 
-  // Workaround for stupid bug in robolectric
-  androidTestCompile 'junit:junit:4.10'
-  androidTestCompile ('org.robolectric:robolectric:2.3') {
-    exclude module: 'classworlds'
-    exclude module: 'maven-artifact'
-    exclude module: 'maven-artifact-manager'
-    exclude module: 'maven-error-diagnostics'
-    exclude module: 'maven-model'
-    exclude module: 'maven-plugin-registry'
-    exclude module: 'maven-profile'
-    exclude module: 'maven-project'
-    exclude module: 'maven-settings'
-    exclude module: 'nekohtml'
-    exclude module: 'plexus-container-default'
-    exclude module: 'plexus-interpolation'
-    exclude module: 'plexus-utils'
-    exclude module: 'wagon-file'
-    exclude module: 'wagon-http-lightweight'
-    exclude module: 'wagon-http-shared'
-    exclude module: 'wagon-provider-api'
-    exclude group: 'com.android.support', module: 'support-v4'
+jar {
+  manifest {
+    attributes 'Implementation-Title': 'KotlinActors',
+               'Implementation-Version': version 
   }
 }
 
-android {
-  compileSdkVersion 21
-  buildToolsVersion '21.1.0'
-
-  sourceSets {
-    main {
-      manifest.srcFile 'AndroidManifest.xml'
-      java.srcDirs = ['src/main/java']
-      java.srcDirs += 'src/main/kotlin'
-    }
-
-    androidTest {
-      setRoot('src/test')
-      java.srcDirs += 'src/test/kotlin'
-    }
-
-    debug.setRoot('build-types/debug')
-    release.setRoot('build-types/release')
-      main.java.srcDirs += 'src/main/kotlin'
-  }
+configurations {
+	deployJars
 }
 
-buildscript {
-    repositories {
-    mavenCentral()
-  }
-  dependencies {
-    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:0.9.66"
-  }
-}
 repositories {
+  maven {
+    credentials {
+      username artifactory_user
+      password artifactory_password
+    }
+    url "${artifactory_contextUrl}/${project.ext.publishingRepo}"
+  }
+  jcenter()
   mavenCentral()
 }
 
+buildscript {
+  ext.kotlin_version = '0.11.91'
+  repositories {
+    jcenter()
+    mavenCentral()
+  }
+  dependencies {
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+  }
+}
 
-robolectric {
-    // configure the set of classes for JUnit tests
-    include '**/*Test.class'
-    exclude '**/espresso/**/*.class'
 
-    // configure max heap size of the test JVM
-    maxHeapSize = '2048m'
+dependencies {
+  compile 'com.google.guava:guava:18.0'
+  testCompile 'junit:junit:4.12'
+	deployJars group: 'org.apache.maven.wagon', name: 'wagon-http', version:'2.6'
+  compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+  compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
+}
 
-    // configure whether failing tests should fail the build
-    ignoreFailures true
+test {
+  testLogging {
+    events 'passed', 'skipped', 'failed', 'standardOut', 'standardError'
+  }
+}
 
-    // use afterTest to listen to the test execution results
-    afterTest { descriptor, result ->
-        println "Executing test for {$descriptor.name} with result: ${result.resultType}"
+uploadArchives {
+  repositories.mavenDeployer {
+    configuration = configurations.deployJars
+    repository(url:"${artifactory_contextUrl}/${project.ext.publishingRepo}") {
+      authentication(userName:"${artifactory_user}",password:"${artifactory_password}")
     }
+  }
+}
+sourceSets {
+  main.java.srcDirs += 'src/main/kotlin'
+}
+
+def setupPublishingDetails() {
+	def env = System.getenv('CI_ENV')
+	if (env == 'RELEASE') {
+		project.ext.publishingRepo = 'libs-release-local'
+		return
+	}
+	project.ext.publishingRepo = 'libs-snapshot-local'
+	version = "${version}-SNAPSHOT"
 }
