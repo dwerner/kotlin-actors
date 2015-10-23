@@ -10,7 +10,6 @@ import org.junit.Test;
 
 import java.util.Date;
 
-import static kotlin.io.IoPackage.println;
 
 /**
  * Created by dan on 11/11/14.
@@ -137,7 +136,7 @@ public class RingTest {
 			promise = (ListenableFuture<?>) promise.get();
 		}
 		long endTime = new Date().getTime();
-		println("Worker count: " + token.maxPasses + " total time = " + (endTime - startTime) + " with " + promiseCount + " promises resolved.");
+		//println("Worker count: " + token.maxPasses + " total time = " + (endTime - startTime) + " with " + promiseCount + " promises resolved.");
 	}
 
 	static class RingToken {

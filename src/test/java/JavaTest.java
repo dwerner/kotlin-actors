@@ -19,10 +19,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import jet.runtime.typeinfo.JetValueParameter;
-
-import static kotlin.io.IoPackage.println;
-
 public class JavaTest {
 	private class Message {
 		Actor a;
@@ -79,7 +75,7 @@ public class JavaTest {
 	@Test
 	public void ActorPingPongTest() {
 		long startTime = new Date().getTime();
-		println("Starting Ping/Ping test from ThreadID" + Thread.currentThread().getId());
+		//println("Starting Ping/Ping test from ThreadID" + Thread.currentThread().getId());
 		List<ListenableFuture<?>> pings = new ArrayList<ListenableFuture<?>>();
 		Ping ping = new Ping();
 		Pong pong = new Pong(); // Don't reflect messages
@@ -91,8 +87,8 @@ public class JavaTest {
 				p.get();
 			}
 			long endTime = new Date().getTime();
-			println("Ending ActorPingPongTest with " + pings.size() + " sent messages in " + (endTime - startTime) + " ms");
-			println("Total messages received:" + ping.msgCount + " + " + pong.msgCount);
+			//println("Ending ActorPingPongTest with " + pings.size() + " sent messages in " + (endTime - startTime) + " ms");
+			//println("Total messages received:" + ping.msgCount + " + " + pong.msgCount);
 		} catch (Exception e) {
 			Assert.fail("exception during ping-pong");
 		}
@@ -108,7 +104,7 @@ public class JavaTest {
 		@Override
 		public Object receive(@Nullable Object m) {
 			long observedInterval = new Date().getTime() - this.time;
-			println("<---- TimeoutActor: Tested/observed interval: " + observedInterval + " - " + m);
+			//println("<---- TimeoutActor: Tested/observed interval: " + observedInterval + " - " + m);
 			Assert.assertTrue("This actor executed the message AFTER 100 ms", observedInterval >= 100);
 			this.time = new Date().getTime();
 			((Message) m).getA().after(100, new Message(this));

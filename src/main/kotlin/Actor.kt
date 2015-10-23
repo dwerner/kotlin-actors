@@ -45,7 +45,7 @@ public abstract class Actor() {
 	// Internal messages
 	private data class Message(val message: Any?, val future: SettableFuture<Any>)
 
-	private data class Death()
+	private class Death
 
 	// atomics
 	private val running = AtomicBoolean(false)
@@ -200,7 +200,7 @@ public abstract class PublishSubscribeActor() : Actor() {
 
 public class ActorExecutionException(
 		msg: String,
-		val message: Any?,
+		val actorMsg: Any?,
 		throwable: Throwable
 ) : Exception(msg, throwable)
 
