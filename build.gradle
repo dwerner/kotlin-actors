@@ -3,7 +3,7 @@ apply plugin: 'kotlin'
 apply plugin: 'maven'
 
 group = 'com.hubble.actors'
-version = '0.1.6'
+version = '0.1.7'
 setupPublishingDetails()
 
 jar {
