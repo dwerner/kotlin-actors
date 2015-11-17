@@ -1,8 +1,8 @@
-Android Actors
+Kotlin Actors
 ==============
 
 
-The goal of this library is to provide a simple DSL-like API for concurrency, implementing actors similar to Erlang or Akka. While this library could easily be ported to other JVM environments, my primary interest is in using it with Android, along with Kotlin and the related plugins.
+The goal of this library is to provide a simple DSL-like API for concurrency, implementing actors similar to Erlang or Akka. While this library could easily be ported to other JVM environments, my primary interest is in using it with Android, along with Kotlin and the related plugins, however it supports plain JVM as well.
 
 # Introduction
 
